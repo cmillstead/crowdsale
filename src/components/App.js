@@ -1,8 +1,11 @@
+import { Container } from 'react-bootstrap';
+import Navigation from './Navigation';
+
 function App() {
   return (
-    <div className="App">
-      <h1>Hello World</h1>
-    </div>
+    <Container>
+      <Navigation />
+    </Container>
   );
 }
 

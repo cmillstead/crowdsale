@@ -1,36 +1,94 @@
+import { useEffect, useState } from 'react';
 import { Container } from 'react-bootstrap';
 import { ethers } from 'ethers';
-import { useEffect, useState } from 'react';
 
-
+// Components
 import Navigation from './Navigation';
 import Info from './Info';
+import Progress from './Progress';
+import Loading from './Loading';
+
+// ABIs
+import TOKEN_ABI from '../abis/Token.json';
+import CROWDSALE_ABI from '../abis/Crowdsale.json';
+
+// Config
+import config from '../config';
 
 function App() {
-
-    const [account, setAccount] = useState(null)
+    // set up state variables
+    const [provider, setProvider] = useState(null);
+    const [crowdsale, setCrowdsale] = useState(null);
+    
+    const [account, setAccount] = useState(null);
+    const [accountBalance, setAccountBalance] = useState(0);
+    
+    const [price, setPrice] = useState(0);
+    const [maxTokens, setMaxTokens] = useState(0);
+    const [tokensSold, setTokensSold] = useState(0);
+    
+    const [isLoading, setIsLoading] = useState(true);
 
     const loadBlockchainData = async () => {
+        // initiate provider
         const provider = new ethers.providers.Web3Provider(window.ethereum);
+        setProvider(provider);
+
+        // fetch chainId
+        const { chainId } = await provider.getNetwork();
+        
+        // initiate contracts
+        const token = new ethers.Contract(config[chainId].token.address, TOKEN_ABI, provider);
+        const crowdsale = new ethers.Contract(config[chainId].crowdsale.address, CROWDSALE_ABI, provider);
+        setCrowdsale(crowdsale);
+
+        // fetch accounts
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const account = ethers.utils.getAddress(accounts[0]);
         setAccount(account);
+
+        // fetch account balance
+        const accountBalance = ethers.utils.formatUnits(await token.balanceOf(account), 18);
+        setAccountBalance(accountBalance);
+
+        // fetch price
+        const price = ethers.utils.formatUnits(await crowdsale.price(), 18);
+        setPrice(price);
+        
+        // fetch max tokens
+        const maxTokens = ethers.utils.formatUnits(await crowdsale.maxTokens(), 18);
+        setMaxTokens(maxTokens);
+        
+        // fetch tokens sold
+        const tokensSold = ethers.utils.formatUnits(await crowdsale.tokensSold(), 18);
+        setTokensSold(tokensSold);
+
+        setIsLoading(false);
     };
 
     useEffect(() => {
-        if (window.ethereum) {
+        if (isLoading) {
             loadBlockchainData();
-        } else {
-            window.alert('Please install MetaMask');
         }
-    });
+    }, [isLoading]);
 
     return (
         <Container>
             <Navigation />
+            <h1 className='text-center my-5'>Introducing DApp Token!</h1>
+            {isLoading ? (
+                <Loading />
+            ) : (
+                <>
+                    <p className='text-center'><strong>Current Price:</strong> {price} ETH</p>
+                    <Progress maxTokens={maxTokens} tokensSold={tokensSold} />
+                </>
+            )}
+            
             <hr />
+            
             {account && (
-                <Info account={account} />
+                <Info account={account} accountBalance={accountBalance} />
             )}
         </Container>
     );
